@@ -1,5 +1,4 @@
-from code_splitter import generate_text_nodes
-from milvus import milvus_config, set_milvus_index
+from milvus import milvus_config, set_milvus_index, insert_data
 from llama_index.llms.gemini import Gemini
 from llama_index.core import Settings
 
@@ -12,70 +11,36 @@ from llama_index.core.vector_stores import (
 )
 import os
 from dotenv import load_dotenv
+from file_management import generate_file_nodes
 
 load_dotenv()
 
 
-# File extension to type mapping
-FILE_TYPE_MAPPING = {
-    '.py': 'python',
-    '.js': 'javascript'
-}
-
-
-def read_code_files(folder_path: str) -> List[Dict]:
+def project_init():
     """
-    Reads .py and .js files from a folder and returns a list of dictionaries with:
-    - source_code: Full content of the file
-    - file_path: Full path to the file
-    - file_type: Language based on extension
-    - tot_lines: Total lines in file
-    - tot_chars: Total characters in file
-    - chunks: List of chunks from generate_text_nodes()
+    Initialize the collection and index and insert documents without pre-checks
+    Only run this for a new collection or when you want to reset everything.
     """
-    file_dicts = []
-
-    for root, _, files in os.walk(folder_path):
-        for file in files:
-            ext = os.path.splitext(file)[1].lower()
-            if ext in FILE_TYPE_MAPPING:
-                file_path = os.path.join(root, file)
-                try:
-                    with open(file_path, 'r', encoding='utf-8') as f:
-                        source_code = f.read()
-
-                    file_dicts.append({
-                        'source_code': source_code,
-                        'file_path': file_path,
-                        'file_type': FILE_TYPE_MAPPING[ext],
-                        'tot_lines': len(source_code.splitlines()),
-                        'tot_chars': len(source_code),
-                        'chunks': generate_text_nodes(source_code, file_path, language=FILE_TYPE_MAPPING[ext])
-                    })
-                except Exception as e:
-                    print(f"Skipping {file_path} due to error: {e}")
-
-    return file_dicts
+    ctx = milvus_config(overwrite=True)  # Overwrite existing collection
+    index = set_milvus_index(ctx)
 
 
 def main():
-    # Step 1: load a file source code as text
 
-    file_path = r"C:\Users\pc\Desktop\llama-index-code-splitter\code-splitter-poetic\target\source.py"
+    folder_path = os.getenv("FILE_PATH")
 
-    with open(file_path, 'r', encoding='utf-8') as file:
-        source_code = file.read()
-
-    # Step 2: use CodeSplitter to split the code
-    text_nodes = generate_text_nodes(source_code, file_path)
+    file_nodes = generate_file_nodes(folder_path)
 
     ctx = milvus_config()
 
     index = set_milvus_index(ctx)
 
-    query_engine = index.as_retriever(similarity_top_k=2)
+    insert_data(file_data=file_nodes, index=index)
+
+    query_engine = index.as_retriever(similarity_top_k=6)
 
     print("Index created successfully! Query engine is ready.")
+
     user_query = input("Enter your query: ")
 
     res = query_engine.retrieve(user_query)
@@ -86,18 +51,11 @@ def main():
 
 
 if __name__ == "__main__":
-    # llm = Gemini(
-    #     model="models/gemini-1.5-flash",
-    #     # uses GOOGLE_API_KEY env var by default
-    #     api_key=os.getenv("GEMINI_API_KEY"),
-    # )
-    # Settings.llm = llm
-    # main()
-    files_data = read_code_files(
-        r"C:\Users\pc\Desktop\llama-index-code-splitter\code-splitter-poetic\target")
-    for file_data in files_data:
-        print(f"Processed {file_data['file_path']}")
-        print(f"Type: {file_data['file_type']}")
-        print(f"Lines: {file_data['tot_lines']}")
-        print(f"Chars: {file_data['tot_chars']}")
-        print(f"Chunks: {len(file_data['chunks'])}")
+    llm = Gemini(
+        model="models/gemini-1.5-flash",
+        # uses GOOGLE_API_KEY env var by default
+        api_key=os.getenv("GEMINI_API_KEY"),
+    )
+    print("----- Gemini LLM Initialized -----")
+    Settings.llm = llm
+    main()
