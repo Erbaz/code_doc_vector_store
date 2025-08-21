@@ -1,6 +1,7 @@
 from milvus import milvus_config, set_milvus_index, insert_data
 from llama_index.llms.gemini import Gemini
 from llama_index.core import Settings
+from classes.Milvus import Milvus
 
 from typing import List, Dict
 
@@ -14,6 +15,10 @@ from dotenv import load_dotenv
 from file_management import generate_file_nodes
 
 load_dotenv()
+
+
+milvus_instance = Milvus()
+milvus_instance.connect()
 
 
 def project_init():
