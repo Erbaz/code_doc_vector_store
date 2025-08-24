@@ -11,8 +11,10 @@ from llama_index.core.vector_stores import (
     FilterOperator,
 )
 import os
+import asyncio
 from dotenv import load_dotenv
 from file_management import generate_file_nodes
+from agent.gemin_code_doc_agent import GeminiCodeDocumentationReActAgent
 
 load_dotenv()
 
@@ -28,31 +30,32 @@ def project_init():
     """
     ctx = milvus_config(overwrite=True)  # Overwrite existing collection
     index = set_milvus_index(ctx)
-
-
-def main():
-
     folder_path = os.getenv("FILE_PATH")
-
     file_nodes = generate_file_nodes(folder_path)
-
     ctx = milvus_config()
-
     index = set_milvus_index(ctx)
-
     insert_data(file_data=file_nodes, index=index)
 
-    query_engine = index.as_retriever(similarity_top_k=6)
 
-    print("Index created successfully! Query engine is ready.")
+async def main():
 
-    user_query = input("Enter your query: ")
+    # Initialize the Gemini Agent
+    agent_app = GeminiCodeDocumentationReActAgent()
 
-    res = query_engine.retrieve(user_query)
+    agent_app.connect_milvus(milvus_instance)
+    agent_app.initialize_agent(model_name="models/gemini-1.5-flash")
 
-    for node in res:
-        print(f"Relevance: {node.score:.2f}")
-        print(node.text + "\n---")
+    while True:
+        user_query = input("Enter your query (or 'exit' to quit): ")
+        if user_query.lower() == 'exit':
+            break
+
+        file_path = input(
+            "Enter the file path (optional, press Enter to skip): ")
+        file_path = file_path if file_path else None
+
+        # Invoke the agent with the user query and optional file path
+        response = await agent_app.invoke(user_query, file_path)
 
 
 if __name__ == "__main__":
@@ -63,4 +66,4 @@ if __name__ == "__main__":
     )
     print("----- Gemini LLM Initialized -----")
     Settings.llm = llm
-    main()
+    asyncio.run(main())

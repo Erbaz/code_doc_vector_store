@@ -36,7 +36,7 @@ class Milvus():
         )
 
         self.index = VectorStoreIndex.from_vector_store(
-            vector_store=self.storage_context.vector_store,
+            vector_store=self.storage_ctx.vector_store,
             embed_model=self.embed_model,
             transformations=[],  # do not apply any transformations
             show_progress=True
@@ -44,8 +44,10 @@ class Milvus():
 
         print("----- Milvus Connected And Index Set Up-----")
 
-    def retrieve_nodes(self, query: str = None, file_path: str = None) -> list[TextNode]:
+        return self.index
 
+    def retrieve_nodes(self, query: str = None, file_path: str = None) -> list[TextNode]:
+        print(f"retrieve nodes for ====> {file_path}")
         if (query is None and file_path is None):
             return []
         if (query is None):
@@ -57,8 +59,8 @@ class Milvus():
             filters = MetadataFilters(
                 filters=[
                     MetadataFilter(
-                        key="file_path", value=file_path, operator=FilterOperator.EQ
-                    )  # file_path = file path
+                        key='metadata["file_path"]', value=file_path, operator=FilterOperator.EQ
+                    )
                 ]
             )
 
@@ -68,7 +70,9 @@ class Milvus():
         nodes = retriever.retrieve()
 
         print(f"Retrieved {len(nodes)} nodes for file: {file_path}")
-
+        print(f"---- List Of Nodes ----")
+        for node in nodes:
+            print(node)
         return nodes
 
     def _get_all_nodes_of_file(self, file_path: str) -> list[TextNode]:
@@ -86,13 +90,14 @@ class Milvus():
         if not results:
             print(f"No results found for file: {file_path}")
             return []
+
         print(f"Found {len(results)} results for file: {file_path}")
 
         # Convert to TextNode objects
         text_nodes = [
             TextNode(
-                text=(nc := json.loads(r["_node_content"]))["text"],
-                metadata=nc["metadata"]
+                text=r["text"],
+                metadata=(json.loads(r["_node_content"]))["metadata"]
             )
             for r in results
         ]

@@ -24,7 +24,7 @@ def retrieve_codes_from_vector_database(query: str = None, file_path: str = None
 tools = [FunctionTool().from_defaults(
     fn=retrieve_codes_from_vector_database, description="""
     pass one of or both of input params - query, and file_path. 
-    You must set provide one of the params. 
+    You must provide one of the params. 
     If only file_path is provided, all code for that file is retrieved. 
     If query is provided, a vector search is performed.
     If both are provided, then a vector search is performed with the query and file_path as a filter.
