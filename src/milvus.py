@@ -104,37 +104,6 @@ def find_by_metadata(file: FileNode, index: VectorStoreIndex) -> list[TextNode]:
 
 
 def insert_data(file_data: list[FileNode], index: VectorStoreIndex):
-    # if not len(file_data) > 0:
-    #     print("No data to insert.")
-    #     return False
-
-    # nodes = []
-
-    # for file in file_data:
-    #     # check if nodes for file are already present in Milvus
-    #     # if present, delete those nodes
-    #     print("---- Checking Existing Nodes for File ----")
-    #     text_nodes = find_by_metadata(file=file, index=index)
-
-    #     if len(text_nodes) > 0:
-    #         node_ids = [node.node_id for node in text_nodes]
-    #         print(
-    #             f"---- Deleting {len(text_nodes)} nodes for file: {file.file_path} ----")
-    #         print(f"Deleting nodes with IDs: {node_ids}")
-    #         index.delete_nodes(node_ids=node_ids)
-
-    #     nodes.extend(file.nodes)
-
-    # print("----- Inserting Data into Milvus -----")
-    # print(f"Total nodes to insert: {len(nodes)}")
-
-    # if len(nodes) == 0:
-    #     print("No nodes to insert.")
-    #     return False
-
-    # index.insert_nodes(nodes)
-
-    # return True
     if not file_data:
         print("No files to process")
         return False
