@@ -2,7 +2,9 @@ from milvus import milvus_config, set_milvus_index, insert_data
 from llama_index.llms.gemini import Gemini
 from llama_index.core import Settings
 from classes.Milvus import Milvus
-
+from llama_index.llms.ollama import Ollama
+from llama_index.embeddings.ollama import OllamaEmbedding
+from llama_index.embeddings.gemini import GeminiEmbedding
 from typing import List, Dict
 
 from llama_index.core.vector_stores import (
@@ -14,13 +16,10 @@ import os
 import asyncio
 from dotenv import load_dotenv
 from file_management import generate_file_nodes
-from agent.gemin_code_doc_agent import GeminiCodeDocumentationReActAgent
+from agent.code_doc_agent import CodeDocumentationReActAgent
 
 load_dotenv()
 
-
-milvus_instance = Milvus()
-milvus_instance.connect()
 
 
 def project_init():
@@ -38,12 +37,13 @@ def project_init():
 
 
 async def main():
-
     # Initialize the Gemini Agent
-    agent_app = GeminiCodeDocumentationReActAgent()
+    agent_app = CodeDocumentationReActAgent()
 
     agent_app.connect_milvus(milvus_instance)
-    agent_app.initialize_agent(model_name="models/gemini-1.5-flash")
+    agent_app.initialize_agent()
+
+    project_init()
 
     while True:
         user_query = input("Enter your query (or 'exit' to quit): ")
@@ -58,12 +58,38 @@ async def main():
         response = await agent_app.invoke(user_query, file_path)
 
 
+milvus_instance = Milvus()
 if __name__ == "__main__":
-    llm = Gemini(
-        model="models/gemini-1.5-flash",
-        # uses GOOGLE_API_KEY env var by default
-        api_key=os.getenv("GEMINI_API_KEY"),
-    )
-    print("----- Gemini LLM Initialized -----")
+    print("Use Ollama?")
+    user_input = input("Enter 'y' for yes or 'n' for no: ")
+    use_ollama = user_input.lower() == 'y'
+
+    if use_ollama:
+        llm = Ollama(
+            model="qwen3:4b",
+            request_timeout=120.0,
+            context_window=8000,
+        )
+        embed_model = OllamaEmbedding(
+            model_name="qwen3-embedding:latest",
+            base_url="http://localhost:11434",
+        )
+    else:
+        llm = Gemini(
+            model="models/gemini-2.0-flash",
+            api_key=os.getenv("GEMINI_API_KEY"),
+        )
+        embed_model = GeminiEmbedding(
+            model_name="models/embedding-001",
+            api_key=os.getenv("GEMINI_API_KEY"),
+        )
+
+    # ✅ Assign to Settings first
     Settings.llm = llm
+    Settings.embed_model = embed_model
+
+    # ✅ Now create Milvus and connect
+    milvus_instance.connect()
+
+    print("----- LLM Initialized -----")
     asyncio.run(main())

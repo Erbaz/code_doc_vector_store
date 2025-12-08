@@ -1,16 +1,17 @@
 
 from llama_index.core.tools import FunctionTool
 from llama_index.llms.gemini import Gemini
+from llama_index.llms.ollama import Ollama
 import os
 from agent.sys_prompt import SYS_PROMPT
 from llama_index.core.agent.workflow import ReActAgent, AgentStream, ToolCallResult
 from llama_index.core.workflow import Context
+from llama_index.core import Settings
 from classes.Milvus import Milvus
 
 
-class GeminiCodeDocumentationReActAgent():
+class CodeDocumentationReActAgent():
     def __init__(self):
-        self.api_key = os.getenv("GEMINI_API_KEY")
         self.milvus = None
         self.agent = None
         self.ctx = None
@@ -19,8 +20,8 @@ class GeminiCodeDocumentationReActAgent():
         self.milvus = milvus
         self.milvus.connect()
 
-    def initialize_agent(self, model_name: str):
-        print("----- Initializing Gemini Code Documentation Agent -----")
+    def initialize_agent(self):
+        print("----- Initializing Code Documentation Agent -----")
 
         def _retrieve_codes_from_vector_database(query: str = None, file_path: str = None):
             print(f"Params: {query}, {file_path}")
@@ -35,12 +36,11 @@ class GeminiCodeDocumentationReActAgent():
 
             return codes
 
+        llm = Settings.llm  # your LLM object
+
         self.agent = ReActAgent(
             system_prompt=SYS_PROMPT,
-            llm=Gemini(
-                model=model_name,
-                api_key=self.api_key,
-            ),
+            llm=llm,
             tools=[
                 FunctionTool.from_defaults(
                     fn=_retrieve_codes_from_vector_database,

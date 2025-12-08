@@ -1,6 +1,6 @@
 from llama_index.vector_stores.milvus import MilvusVectorStore
 from llama_index.embeddings.gemini import GeminiEmbedding
-from llama_index.core import StorageContext, VectorStoreIndex
+from llama_index.core import StorageContext, VectorStoreIndex, Settings
 from llama_index.core.schema import TextNode
 from llama_index.core.vector_stores import (
     MetadataFilter,
@@ -22,10 +22,10 @@ load_dotenv()
 def milvus_config(overwrite: bool = False) -> StorageContext:
     print("----- Connecting to Milvus -----")
     vector_store = MilvusVectorStore(
-        uri="https://in03-890cd99e122622e.serverless.aws-eu-central-1.cloud.zilliz.com",
+        uri="https://in03-890cd99e122622e.serverless.aws-eu-central-1.cloud.zilliz.com:443",
         token=os.getenv("MILVUS_TOKEN"),
         collection_name="source_code_collection",
-        dim=768,  # Vector dimension depends on the embedding model
+        dim=os.getenv("DIM", 768),  # Vector dimension depends on the embedding model
         overwrite=overwrite,  # Drop collection if exists
     )
     storage_context = StorageContext.from_defaults(vector_store=vector_store)
@@ -35,13 +35,10 @@ def milvus_config(overwrite: bool = False) -> StorageContext:
 
 def set_milvus_index(storage_context: StorageContext):
     print("----- Setting Milvus Index -----")
-    embed_model = GeminiEmbedding(
-        model_name="models/embedding-001",  # Default Gemini embedding model
-        api_key=os.getenv("GEMINI_API_KEY")
-    )
+    
     index = VectorStoreIndex.from_vector_store(
         vector_store=storage_context.vector_store,
-        embed_model=embed_model,
+        embed_model=Settings.embed_model,
         transformations=[],  # do not apply any transformations
         show_progress=True
     )

@@ -1,5 +1,5 @@
 import os
-from llama_index.core import StorageContext, VectorStoreIndex
+from llama_index.core import StorageContext, VectorStoreIndex, Settings
 from llama_index.vector_stores.milvus import MilvusVectorStore
 from llama_index.embeddings.gemini import GeminiEmbedding
 from llama_index.core.schema import TextNode
@@ -20,20 +20,18 @@ class Milvus():
         self.embed_model = None
 
     def connect(self):
+        self.embed_model = Settings.embed_model
+        
         self.vector_store = MilvusVectorStore(
             uri=os.getenv("MILVUS_URI"),
             token=os.getenv("MILVUS_TOKEN"),
             collection_name="source_code_collection",
-            dim=768,  # Vector dimension depends on the embedding model
+            dim=os.getenv("DIM", 768),  # Vector dimension depends on the embedding model
             overwrite=False,  # Drop collection if exists
         )
         self.storage_ctx = StorageContext.from_defaults(
             vector_store=self.vector_store)
 
-        self.embed_model = GeminiEmbedding(
-            model_name="models/embedding-001",  # Default Gemini embedding model
-            api_key=os.getenv("GEMINI_API_KEY")
-        )
 
         self.index = VectorStoreIndex.from_vector_store(
             vector_store=self.storage_ctx.vector_store,
@@ -48,31 +46,41 @@ class Milvus():
 
     def retrieve_nodes(self, query: str = None, file_path: str = None) -> list[TextNode]:
         print(f"retrieve nodes for ====> {file_path}")
-        if (query is None and file_path is None):
+
+        # Case 1: nothing provided
+        if query is None and file_path is None:
             return []
-        if (query is None):
-            # query all nodes for the file
-            nodes = self._get_all_nodes_of_file(file_path)
-            return nodes
+
+        # Case 2: file-only retrieval
+        if query is None and file_path is not None:
+            return self._get_all_nodes_of_file(file_path)
+
+        # Case 3: query provided, no file filter
         filters = None
-        if (file_path is None):
+
+        # Case 4: query + file filter
+        if file_path is not None:
             filters = MetadataFilters(
                 filters=[
                     MetadataFilter(
-                        key='metadata["file_path"]', value=file_path, operator=FilterOperator.EQ
+                        key="file_path",   # FIXED KEY NAME
+                        value=file_path,
+                        operator=FilterOperator.EQ
                     )
                 ]
             )
 
         retriever = self.index.as_retriever(
-            similarity_top_k=10, filters=filters)
+            similarity_top_k=10,
+            filters=filters  # None when no file path filter
+        )
 
-        nodes = retriever.retrieve()
+        nodes = retriever.retrieve(query)
 
         print(f"Retrieved {len(nodes)} nodes for file: {file_path}")
-        print(f"---- List Of Nodes ----")
-        for node in nodes:
-            print(node)
+        for n in nodes:
+            print(n)
+
         return nodes
 
     def _get_all_nodes_of_file(self, file_path: str) -> list[TextNode]:
